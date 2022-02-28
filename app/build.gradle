@@ -1,27 +1,72 @@
-plugins {
-    id 'com.android.application'
-    id 'kotlin-android'
-}
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'dagger.hilt.android.plugin'
 
 android {
-    compileSdk 31
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
+
+    // 당연하지만 배포용은 아니고 release 테스트용
+    signingConfigs {
+        release {
+            storeFile file("./ydsyourssu.jks")
+            storePassword (System.getenv("STORE_PASSWORD"))
+            keyAlias (System.getenv("KEY_ALIAS"))
+            keyPassword (System.getenv("KEY_PASSWORD"))
+        }
+    }
 
     defaultConfig {
-        applicationId "com.example.ssulogin"
-        minSdk 21
-        targetSdk 31
-        versionCode 1
-        versionName "1.0"
+        applicationId "com.yourssu.storybook"
+        minSdkVersion 23
+        targetSdkVersion 30
+        versionCode (System.getenv("BUILD_NUMBER") as Integer ?: 10000) // 로컬에서 10000 번으로 빌드됨
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        //이것도 추가
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += ["foo" : "bar"]
+            }
+        }
+    }
+    //이것도 추가
+    kapt {
+        javacOptions {
+            // These options are normally set automatically via the Hilt Gradle plugin, but we
+            // set them manually to workaround a bug in the Kotlin 1.5.20
+            option("-Adagger.fastInit=ENABLED")
+            option("-Adagger.hilt.android.internal.disableAndroidSuperclassValidation=true")
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
+
+    flavorDimensions "apk_type"
+
+    productFlavors {
+        dev {
+            dimension "apk_type"
+            applicationIdSuffix ".dev"
+
+            buildConfigField 'boolean', 'DEV', 'true'
+        }
+
+        production {
+            dimension "apk_type"
+
+            buildConfigField 'boolean', 'DEV', 'false'
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -29,20 +74,43 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-}
 
-repositories{
-    maven { url 'https://jitpack.io' }
+    dataBinding {
+        enabled true
+    }
 }
 
 dependencies {
 
-    implementation "com.github.yourssu:YDS-Android:develop-SNAPSHOT"
+    implementation "com.github.yourssu:YDS-Android:0.9.0"
 
-    implementation 'androidx.core:core-ktx:1.7.0'
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation 'com.google.android.material:material:1.5.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
+    //Dagger
+    def dagger_version = "2.39.1"
+    implementation "com.google.dagger:hilt-android:$dagger_version"
+    kapt "com.google.dagger:hilt-compiler:$dagger_version"
+
+    //Hilt
+    def hilt_lifecycle = "1.0.0-alpha02"
+    implementation "androidx.hilt:hilt-lifecycle-viewmodel:$hilt_lifecycle"
+    kapt "androidx.hilt:hilt-compiler:$hilt_lifecycle"
+
+    //코루틴
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.3'
+
+    def lifecycle_version = "2.3.0"
+    // ViewModel - 라이프 사이클
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
+    // LiveData - 데이터의 변경 사항을 알 수 있음
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version"
+
+    implementation 'androidx.core:core-ktx:1.6.0'
+    implementation 'androidx.activity:activity-ktx:1.3.1'
+    implementation 'androidx.fragment:fragment-ktx:1.3.6'
+    implementation 'androidx.appcompat:appcompat:1.3.1'
+    implementation 'com.google.android.material:material:1.4.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
